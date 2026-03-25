@@ -1,0 +1,122 @@
+{
+	"pages": [
+		{
+			"path": "pages/home/index",
+			"style": {
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#F5F3EF",
+				"navigationBarTextStyle": "black",
+				"enablePullDownRefresh": true,
+				"backgroundColor": "#F5F3EF"
+			}
+		},
+		{
+			"path": "pages/publish/index",
+			"style": {
+				"navigationBarTitleText": "写旅行记录",
+				"navigationBarBackgroundColor": "#FFFFFF",
+				"navigationBarTextStyle": "black",
+				"backgroundColor": "#F5F3EF"
+			}
+		},
+		{
+			"path": "pages/community/index",
+			"style": {
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#F5F3EF",
+				"navigationBarTextStyle": "black",
+				"enablePullDownRefresh": true,
+				"backgroundColor": "#F5F3EF"
+			}
+		},
+		{
+			"path": "pages/tools/index",
+			"style": {
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#1A1714",
+				"navigationBarTextStyle": "white",
+				"backgroundColor": "#F5F3EF"
+			}
+		},
+		{
+			"path": "pages/profile/index",
+			"style": {
+				"navigationBarTitleText": "我的",
+				"navigationBarBackgroundColor": "#F5F3EF",
+				"navigationBarTextStyle": "black",
+				"backgroundColor": "#F5F3EF"
+			}
+		},
+		{
+			"path": "pages/post/detail",
+			"style": {
+				"navigationBarTitleText": "旅行记录",
+				"navigationBarBackgroundColor": "#F5F3EF",
+				"navigationBarTextStyle": "black",
+				"backgroundColor": "#F5F3EF"
+			}
+		},
+		{
+			"path": "pages/destination/index",
+			"style": {
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#1A1714",
+				"navigationBarTextStyle": "white",
+				"backgroundColor": "#F5F3EF"
+			}
+		},
+		{
+			"path": "pages/guide/index",
+			"style": {
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#1A1714",
+				"navigationBarTextStyle": "white",
+				"backgroundColor": "#F5F3EF"
+			}
+		}
+	],
+	"globalStyle": {
+		"navigationBarTextStyle": "black",
+		"navigationBarTitleText": "",
+		"navigationBarBackgroundColor": "#F5F3EF",
+		"backgroundColor": "#F5F3EF"
+	},
+	"tabBar": {
+		"color": "#7A726B",
+		"selectedColor": "#E05C2A",
+		"backgroundColor": "#FFFFFF",
+		"borderStyle": "black",
+		"list": [
+			{
+				"pagePath": "pages/home/index",
+				"text": "首页",
+				"iconPath": "static/tabbar/home.png",
+				"selectedIconPath": "static/tabbar/home-active.png"
+			},
+			{
+				"pagePath": "pages/tools/index",
+				"text": "工具",
+				"iconPath": "static/tabbar/tools.png",
+				"selectedIconPath": "static/tabbar/tools-active.png"
+			},
+			{
+				"pagePath": "pages/guide/index",
+				"text": "AI",
+				"iconPath": "static/tabbar/ai.png",
+				"selectedIconPath": "static/tabbar/ai-active.png"
+			},
+			{
+				"pagePath": "pages/community/index",
+				"text": "消息",
+				"iconPath": "static/tabbar/message.png",
+				"selectedIconPath": "static/tabbar/message-active.png"
+			},
+			{
+				"pagePath": "pages/profile/index",
+				"text": "我的",
+				"iconPath": "static/tabbar/profile.png",
+				"selectedIconPath": "static/tabbar/profile-active.png"
+			}
+		]
+	}
+}
