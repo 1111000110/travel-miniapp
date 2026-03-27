@@ -39,6 +39,14 @@ export function getCurrentUser(type = 'private') {
 	})
 }
 
+/** 查看他人公开资料（需登录）；type 与后端约定为非 get_private_info 时不返回手机等敏感字段 */
+export function getUserPublic(queryUserId) {
+	return requestUser('/api/user/query', {
+		query_user_id: queryUserId || '',
+		type: 'basic',
+	})
+}
+
 export function miniPhoneLogin(payload) {
 	return requestUser('/api/user/mini/phone/login', payload, { needAuth: false })
 }

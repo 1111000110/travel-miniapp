@@ -6,10 +6,23 @@
 				<text v-for="tag in normalizedTags" :key="tag" class="detail-tag">#{{ tag }}</text>
 			</view>
 			<text class="detail-title">{{ postTitle }}</text>
-			<view class="detail-meta-row">
+			<view class="detail-meta-row" @tap="openAuthorProfile">
+				<image
+					v-if="authorAvatar"
+					class="detail-author-avatar"
+					:src="authorAvatar"
+					mode="aspectFill"
+				/>
+				<view v-else class="detail-author-avatar detail-author-avatar-ph">
+					<text class="detail-author-initial">{{ authorInitial }}</text>
+				</view>
 				<text class="detail-author">{{ authorName }}</text>
 				<text class="detail-dot">·</text>
 				<text class="detail-time">{{ formatDate(postCreateTime) }}</text>
+			</view>
+			<view v-if="canChatWithAuthor" class="chat-entry" @tap="openPrivateChat">
+				<text class="chat-entry-icon">💬</text>
+				<text class="chat-entry-text">与发布者交流</text>
 			</view>
 		</view>
 
@@ -45,6 +58,7 @@
 
 <script>
 import { getPostDetail } from '../../api/post'
+import { getCurrentUserId } from '../../utils/auth'
 import { showError } from '../../utils/feedback'
 import {
 	getPendingPostDetail,
@@ -60,6 +74,7 @@ export default {
 			postId: '',
 			post: null,
 			postSummary: null,
+			myUserId: '',
 		}
 	},
 	computed: {
@@ -86,14 +101,42 @@ export default {
 			return '正在加载内容…'
 		},
 		authorName() {
-			if (this.post && this.post.author && this.post.author.nick_name) return this.post.author.nick_name
+			const d = this.post && this.post.author
+			if (d && d.nick_name) return d.nick_name
+			const s = this.postSummary && this.postSummary.author
+			if (s && s.nick_name) return s.nick_name
 			return '旅行者'
+		},
+		authorAvatar() {
+			const d = this.post && this.post.author
+			if (d && d.avatar) return d.avatar
+			const s = this.postSummary && this.postSummary.author
+			if (s && s.avatar) return s.avatar
+			return ''
+		},
+		authorInitial() {
+			const n = this.authorName.trim()
+			return n ? n.slice(0, 1) : '?'
 		},
 		postTypeText() {
 			const imageCount = this.post && this.post.post_base && Array.isArray(this.post.post_base.images)
 				? this.post.post_base.images.length
 				: (this.postSummary && this.postSummary.image_count) || 0
 			return imageCount ? `图文 · ${imageCount} 张` : '纯文字'
+		},
+		authorUserId() {
+			if (this.post && this.post.post_base && this.post.post_base.user_id) {
+				return String(this.post.post_base.user_id)
+			}
+			const sum = this.postSummary
+			if (sum && sum.user_id) return String(sum.user_id)
+			if (sum && sum.author && sum.author.user_id) return String(sum.author.user_id)
+			return ''
+		},
+		canChatWithAuthor() {
+			const me = this.myUserId
+			const pid = this.authorUserId
+			return !!(me && pid && pid !== me)
 		},
 	},
 	onLoad(options) {
@@ -105,9 +148,26 @@ export default {
 		}
 	},
 	onShow() {
+		this.myUserId = getCurrentUserId()
 		if (!this.post) this.loadPost()
 	},
 	methods: {
+		openAuthorProfile() {
+			const uid = this.authorUserId
+			if (!uid) return
+			const nick = this.authorName === '旅行者' ? '' : this.authorName
+			uni.navigateTo({
+				url: `/pages/user/profile?userId=${encodeURIComponent(uid)}&nickName=${encodeURIComponent(nick)}`,
+			})
+		},
+		openPrivateChat() {
+			if (!this.canChatWithAuthor) return
+			const pid = this.authorUserId
+			const name = this.authorName
+			uni.navigateTo({
+				url: `/pages/message/chat?peerId=${encodeURIComponent(pid)}&peerName=${encodeURIComponent(name)}`,
+			})
+		},
 		async loadPost() {
 			if (!this.postId) {
 				showError(new Error('缺少帖子 ID'))
@@ -188,6 +248,26 @@ export default {
 	margin-top: 16rpx;
 }
 
+.detail-author-avatar {
+	width: 56rpx;
+	height: 56rpx;
+	border-radius: 999rpx;
+	flex-shrink: 0;
+	background: var(--accent-bg);
+}
+
+.detail-author-avatar-ph {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.detail-author-initial {
+	font-size: 24rpx;
+	font-weight: 700;
+	color: var(--accent);
+}
+
 .detail-author {
 	font-size: 26rpx;
 	color: var(--text-2);
@@ -201,6 +281,29 @@ export default {
 .detail-time {
 	font-size: 26rpx;
 	color: var(--text-2);
+}
+
+.chat-entry {
+	margin-top: 24rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 12rpx;
+	padding: 20rpx 28rpx;
+	border-radius: 999rpx;
+	background: var(--accent-bg);
+	border: 1rpx solid var(--accent);
+}
+
+.chat-entry-icon {
+	font-size: 28rpx;
+	line-height: 1;
+}
+
+.chat-entry-text {
+	font-size: 28rpx;
+	font-weight: 700;
+	color: var(--accent);
 }
 
 /* images */

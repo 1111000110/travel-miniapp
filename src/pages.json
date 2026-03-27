@@ -13,8 +13,8 @@
 		{
 			"path": "pages/publish/index",
 			"style": {
-				"navigationBarTitleText": "写旅行记录",
-				"navigationBarBackgroundColor": "#FFFFFF",
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#F5F3EF",
 				"navigationBarTextStyle": "black",
 				"backgroundColor": "#F5F3EF"
 			}
@@ -33,15 +33,15 @@
 			"path": "pages/tools/index",
 			"style": {
 				"navigationBarTitleText": "",
-				"navigationBarBackgroundColor": "#1A1714",
-				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#F5F3EF",
+				"navigationBarTextStyle": "black",
 				"backgroundColor": "#F5F3EF"
 			}
 		},
 		{
 			"path": "pages/profile/index",
 			"style": {
-				"navigationBarTitleText": "我的",
+				"navigationBarTitleText": "",
 				"navigationBarBackgroundColor": "#F5F3EF",
 				"navigationBarTextStyle": "black",
 				"backgroundColor": "#F5F3EF"
@@ -50,18 +50,37 @@
 		{
 			"path": "pages/post/detail",
 			"style": {
-				"navigationBarTitleText": "旅行记录",
+				"navigationBarTitleText": "",
 				"navigationBarBackgroundColor": "#F5F3EF",
 				"navigationBarTextStyle": "black",
 				"backgroundColor": "#F5F3EF"
 			}
 		},
 		{
+			"path": "pages/user/profile",
+			"style": {
+				"navigationBarTitleText": "用户主页",
+				"navigationBarBackgroundColor": "#F5F3EF",
+				"navigationBarTextStyle": "black",
+				"backgroundColor": "#F5F3EF"
+			}
+		},
+		{
+			"path": "pages/message/chat",
+			"style": {
+				"navigationBarTitleText": "私信",
+				"navigationBarBackgroundColor": "#F5F3EF",
+				"navigationBarTextStyle": "black",
+				"backgroundColor": "#F5F3EF",
+				"enablePullDownRefresh": true
+			}
+		},
+		{
 			"path": "pages/destination/index",
 			"style": {
 				"navigationBarTitleText": "",
-				"navigationBarBackgroundColor": "#1A1714",
-				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#F5F3EF",
+				"navigationBarTextStyle": "black",
 				"backgroundColor": "#F5F3EF"
 			}
 		},
@@ -69,8 +88,8 @@
 			"path": "pages/guide/index",
 			"style": {
 				"navigationBarTitleText": "",
-				"navigationBarBackgroundColor": "#1A1714",
-				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#F5F3EF",
+				"navigationBarTextStyle": "black",
 				"backgroundColor": "#F5F3EF"
 			}
 		}

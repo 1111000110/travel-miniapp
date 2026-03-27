@@ -104,6 +104,18 @@
 						mode="aspectFill"
 					/>
 					<view class="post-body">
+						<view class="post-author-row" @tap.stop="openUserProfile(post)">
+							<image
+								v-if="postAuthorAvatar(post)"
+								class="post-author-avatar"
+								:src="postAuthorAvatar(post)"
+								mode="aspectFill"
+							/>
+							<view v-else class="post-author-avatar post-author-avatar-ph">
+								<text class="post-author-initial">{{ postAuthorInitial(post) }}</text>
+							</view>
+							<text class="post-author-name">{{ postAuthorName(post) }}</text>
+						</view>
 						<view class="post-tag-row">
 							<text v-for="tag in normalizeTags(post.tags)" :key="tag" class="post-tag">#{{ tag }}</text>
 							<text class="post-time">{{ formatTime(post.create_time) }}</text>
@@ -133,14 +145,10 @@
 </template>
 
 <script>
-import { getPostDetailList, getPostList } from '../../api/post'
-import { getTravelHome, getNavigationNotice, getLocationCity } from '../../api/travel'
+import { getPostList } from '../../api/post'
+import { getTravelHome, getNavigationNotice } from '../../api/travel'
 import { showError, withLoading } from '../../utils/feedback'
-import {
-	setPostSummaryCache,
-	setPendingPostDetailList,
-	setPostDetailListCache,
-} from '../../utils/post-cache'
+import { setPostSummaryCache } from '../../utils/post-cache'
 
 const DEFAULT_CITY = '大理'
 const POST_TABS = [
@@ -207,38 +215,36 @@ export default {
 		}
 	},
 	methods: {
-		// 先尝试获取定位城市，失败则降级到 DEFAULT_CITY
-		async resolveCity() {
+		// 尝试获取设备经纬度，失败返回 null
+		getCoords() {
 			return new Promise((resolve) => {
 				uni.authorize({
 					scope: 'scope.userLocation',
 					success: () => {
 						uni.getLocation({
 							type: 'gcj02',
-							success: async ({ latitude, longitude }) => {
-								try {
-									const res = await getLocationCity(latitude, longitude)
-									resolve(res.city_name || DEFAULT_CITY)
-								} catch {
-									resolve(DEFAULT_CITY)
-								}
-							},
-							fail: () => resolve(DEFAULT_CITY),
+							success: ({ latitude, longitude }) => resolve({ latitude, longitude }),
+							fail: () => resolve(null),
 						})
 					},
-					fail: () => resolve(DEFAULT_CITY),
+					fail: () => resolve(null),
 				})
 			})
 		},
 		async loadHomeWithLocation(options = {}) {
-			const city = await this.resolveCity()
-			await this.loadHome({ ...options, city })
+			const coords = await this.getCoords()
+			await this.loadHome({ ...options, coords })
 		},
 		async loadHome(options = {}) {
-			const { silent = false, city = DEFAULT_CITY } = options
+			const { silent = false, coords = null } = options
 			const runner = async () => {
-				const home = await getTravelHome(city)
+				// 有经纬度就传给后端，服务端统一做逆地理；否则传空让后端用默认城市
+				const params = coords
+					? { latitude: coords.latitude, longitude: coords.longitude }
+					: { city_name: DEFAULT_CITY }
+				const home = await getTravelHome(params)
 				this.home = home
+				this.weatherSummary = home.weather_summary || ''
 				await Promise.all([this.loadWeather(), this.loadPosts(true)])
 				this.loaded = true
 			}
@@ -255,9 +261,9 @@ export default {
 		async loadWeather() {
 			try {
 				const result = await getNavigationNotice(this.currentCity)
-				this.weatherSummary = result.weather_summary || ''
+				this.weatherSummary = result.weather_summary || this.weatherSummary
 			} catch {
-				this.weatherSummary = ''
+				// 保留 home 接口已返回的天气摘要
 			}
 		},
 		async loadPosts(reset = false) {
@@ -270,7 +276,6 @@ export default {
 					limit: 10,
 				})
 				this.posts = result.posts || []
-				this.prefetchPostDetails(this.posts)
 			} catch (error) {
 				showError(error)
 			} finally {
@@ -307,20 +312,29 @@ export default {
 			setPostSummaryCache(postId, post)
 			uni.navigateTo({ url: `/pages/post/detail?postId=${postId}` })
 		},
+		postAuthorName(post) {
+			const a = post && post.author
+			if (a && a.nick_name) return a.nick_name
+			return '旅行者'
+		},
+		postAuthorAvatar(post) {
+			const a = post && post.author
+			return (a && a.avatar) || ''
+		},
+		postAuthorInitial(post) {
+			const n = this.postAuthorName(post)
+			return (n && n.trim().slice(0, 1)) || '?'
+		},
+		openUserProfile(post) {
+			const uid = (post && post.user_id) || (post && post.author && post.author.user_id)
+			if (!uid) return
+			const nick = (post && post.author && post.author.nick_name) || ''
+			uni.navigateTo({
+				url: `/pages/user/profile?userId=${encodeURIComponent(uid)}&nickName=${encodeURIComponent(nick)}`,
+			})
+		},
 		goPublish() {
 			uni.navigateTo({ url: '/pages/publish/index' })
-		},
-		async prefetchPostDetails(posts = []) {
-			const postIds = posts.map((item) => item.post_id).filter(Boolean)
-			if (!postIds.length) return
-			try {
-				const request = getPostDetailList({ post_ids: postIds }).then((result) => result.posts || [])
-				setPendingPostDetailList(postIds, request)
-				const details = await request
-				setPostDetailListCache(details)
-			} catch (error) {
-				console.warn('prefetchPostDetails failed', error)
-			}
 		},
 	},
 }
@@ -663,6 +677,44 @@ export default {
 
 .post-body {
 	padding: 24rpx 28rpx 20rpx;
+}
+
+.post-author-row {
+	display: flex;
+	align-items: center;
+	gap: 16rpx;
+	margin-bottom: 16rpx;
+}
+
+.post-author-avatar {
+	width: 64rpx;
+	height: 64rpx;
+	border-radius: 999rpx;
+	flex-shrink: 0;
+	background: var(--accent-bg);
+}
+
+.post-author-avatar-ph {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.post-author-initial {
+	font-size: 26rpx;
+	font-weight: 700;
+	color: var(--accent);
+}
+
+.post-author-name {
+	font-size: 28rpx;
+	font-weight: 600;
+	color: var(--text);
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .post-tag-row {

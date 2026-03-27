@@ -1,11 +1,8 @@
 import { request } from '../utils/request'
 
-export function getLocationCity(latitude, longitude) {
-	return request('/api/travel/location/city', { latitude, longitude })
-}
-
-export function getTravelHome(cityName = '大理') {
-	return request('/api/travel/home', { city_name: cityName })
+// params: { city_name?, latitude?, longitude? }  经纬度优先，服务端内部完成逆地理解析
+export function getTravelHome(params = {}) {
+	return request('/api/travel/home', params)
 }
 
 export function getDestinationDetail(destinationId) {

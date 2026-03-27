@@ -199,7 +199,9 @@ export default {
 					})
 				)
 				this.auth = result
-				persistAuth(result)
+				const rid = result && (result.user_id || result.userId)
+				persistAuth(rid ? { ...result, user_id: String(rid) } : result)
+				this.auth = getAuthState()
 				await this.loadProfile()
 				uni.showToast({ title: result.is_new_user ? '登录成功' : '欢迎回来', icon: 'success' })
 			} catch (error) {
@@ -252,6 +254,12 @@ export default {
 				const result = await withLoading('加载资料', () => getCurrentUser('get_private_info'))
 				const nextProfile = result.user_info || createEmptyProfile()
 				this.profile = nextProfile
+				const uid = nextProfile.user_base && nextProfile.user_base.user_id
+				if (uid && this.auth) {
+					const merged = { ...this.auth, user_id: String(uid) }
+					this.auth = merged
+					persistAuth(merged)
+				}
 			} catch (error) {
 				showError(error)
 			}
