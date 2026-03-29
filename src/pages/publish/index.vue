@@ -329,6 +329,7 @@ export default {
 				return
 			}
 			this.submitting = true
+			const publishedPublic = this.form.status === 1
 			try {
 				await withLoading('发布中', () =>
 					createPost({
@@ -339,10 +340,10 @@ export default {
 						status: this.form.status,
 					})
 				)
-				uni.showToast({ title: this.form.status === 1 ? '发布成功' : '已保存草稿', icon: 'success' })
+				uni.showToast({ title: publishedPublic ? '发布成功' : '已保存草稿', icon: 'success' })
 				this.resetForm()
-				if (this.form.status !== 0) {
-					setTimeout(() => uni.switchTab({ url: '/pages/community/index' }), 800)
+				if (publishedPublic) {
+					setTimeout(() => uni.switchTab({ url: '/pages/home/index' }), 600)
 				}
 			} catch (error) {
 				showError(error)
@@ -352,7 +353,6 @@ export default {
 		},
 		resetForm() {
 			this.form = { title: '', content: '', images: [], tags: [], status: 1 }
-			this.titleKeywords = []
 			this.customTagInput = ''
 			this.showAllTags = false
 		},

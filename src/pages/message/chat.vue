@@ -1,6 +1,6 @@
 <template>
 	<view class="chat-page">
-		<view class="chat-list">
+		<scroll-view scroll-y class="chat-list" :scroll-into-view="scrollAnchorId">
 			<view v-if="loading && !messages.length" class="hint">加载中…</view>
 			<view
 				v-for="m in orderedMessages"
@@ -29,7 +29,9 @@
 				</view>
 			</view>
 			<view v-if="!loading && !messages.length" class="hint">发一条消息，开始对话吧</view>
-		</view>
+			<!-- 滚动锚点：id 随消息数量变化，scroll-into-view 检测到变化后自动滚到底部 -->
+			<view :id="scrollAnchorId" />
+		</scroll-view>
 		<view class="composer safe-bottom">
 			<input
 				v-model="draft"
@@ -54,6 +56,7 @@ import {
 import { getCurrentUserId } from '../../utils/auth'
 import { getCurrentUser, getUserPublic } from '../../api/user'
 import { showError } from '../../utils/feedback'
+import { wsManager } from '../../utils/websocket'
 
 const AVATAR_COLORS = [
 	'#E05C2A', '#2A8AE0', '#2AE07C', '#E02A7C',
@@ -73,6 +76,9 @@ export default {
 			myAvatar: '',
 			myNick: '',
 			peerAvatar: '',
+			scrollAnchorId: 'chat-bottom-0', // 每次调用 scrollToBottom() 后更新，触发 scroll-view 滚底
+			_scrollCtr: 0,
+			_wsHandler: null, // WS 监听器引用，用于 onUnload 时移除
 		}
 	},
 	computed: {
@@ -117,6 +123,28 @@ export default {
 		this.loadUserFaces()
 		this.refreshMessages()
 		markSessionRead({ session_id: this.sessionId }).catch(() => {})
+
+		// 订阅 WebSocket 新消息：实时追加到当前会话
+		this._wsHandler = (evt) => {
+			try {
+				const val = JSON.parse(evt.notify_val || '{}')
+				if (val.session_id === this.sessionId && val.message) {
+					const exists = this.messages.some(m => m.message_id === val.message.message_id)
+					if (!exists) {
+						this.messages = [val.message, ...this.messages]
+						this.scrollToBottom()
+					}
+				}
+			} catch {}
+		}
+		wsManager.on('new_message', this._wsHandler)
+	},
+	onUnload() {
+		// 离开页面时移除监听，避免内存泄漏
+		if (this._wsHandler) {
+			wsManager.off('new_message', this._wsHandler)
+			this._wsHandler = null
+		}
 	},
 	onPullDownRefresh() {
 		this.refreshMessages().finally(() => uni.stopPullDownRefresh())
@@ -170,12 +198,19 @@ export default {
 			if (Number.isNaN(d.getTime())) return ''
 			return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 		},
+		scrollToBottom() {
+			this.$nextTick(() => {
+				this._scrollCtr++
+				this.scrollAnchorId = `chat-bottom-${this._scrollCtr}`
+			})
+		},
 		async refreshMessages() {
 			if (!this.sessionId) return
 			this.loading = true
 			try {
 				const res = await getMessageList({ session_id: this.sessionId, last_message_id: '', limit: 50 })
 				this.messages = res.messages || []
+				this.scrollToBottom()
 			} catch (e) {
 				showError(e)
 			} finally {
@@ -196,6 +231,7 @@ export default {
 				} else {
 					await this.refreshMessages()
 				}
+				this.scrollToBottom()
 			} catch (e) {
 				showError(e)
 			}
@@ -214,8 +250,8 @@ export default {
 }
 .chat-list {
 	flex: 1;
+	height: 0; /* flex:1 + height:0 让 scroll-view 填满剩余空间并可滚动 */
 	padding: 24rpx 24rpx 200rpx;
-	overflow-y: auto;
 }
 .hint {
 	text-align: center;
@@ -228,6 +264,9 @@ export default {
 	align-items: flex-end;
 	gap: 12rpx;
 	margin-bottom: 20rpx;
+	width: 100%;
+	overflow: hidden;
+	box-sizing: border-box;
 }
 .bubble-row.mine {
 	flex-direction: row-reverse;

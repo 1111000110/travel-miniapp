@@ -1,111 +1,89 @@
 <template>
-	<view class="page-shell">
-		<view v-if="!auth">
-			<view class="poster account-poster">
-				<text class="eyebrow">MY TRAVEL HUB</text>
-				<text class="poster-title">登录后，把你的攻略、收藏和出行提醒收回到一个账号里</text>
-				<text class="poster-subtitle">当前只保留手机号一键登录，登录成功后可按需补充同步微信资料。</text>
-				<view class="account-hero">
-					<image class="wechat-avatar hero-avatar" :src="displayAvatar" mode="aspectFill" />
-					<view class="hero-copy">
-						<text class="hero-name">手机号一键登录</text>
-						<text class="hero-desc">微信验证手机号，首次进入自动创建账号，后续直接恢复登录态。</text>
+	<view class="page-shell profile-page">
+		<!-- 未登录 -->
+		<view v-if="!auth" class="login-panel">
+			<text class="login-title">登录</text>
+			<text class="login-desc">使用微信授权手机号，用于账号与消息</text>
+			<view class="agree-row" @tap="toggleAgreement">
+				<view class="agree-box" :class="{ on: agreed }">{{ agreed ? '✓' : '' }}</view>
+				<text class="agree-txt">同意《服务协议》《隐私政策》</text>
+			</view>
+			<button class="login-btn" open-type="getPhoneNumber" @getphonenumber="handlePhoneLogin">
+				手机号登录
+			</button>
+			<text class="skip-link" @tap="showGuestNotice">暂不登录</text>
+		</view>
+
+		<!-- 已登录 -->
+		<view v-else class="me-panel">
+			<view class="me-card">
+				<image class="me-avatar" :src="displayAvatar" mode="aspectFill" />
+				<text class="me-name">{{ displayName }}</text>
+				<text class="me-phone">{{ phoneDisplay }}</text>
+
+				<template v-if="!editing">
+					<view class="me-row-actions">
+						<view class="text-btn" @tap="editing = true">编辑资料</view>
+						<text class="dot">·</text>
+						<view class="text-btn" @tap="openWechatSync">同步微信头像昵称</view>
+					</view>
+					<view class="logout-btn" @tap="logout">退出登录</view>
+				</template>
+
+				<view v-else-if="profile" class="edit-form">
+					<view class="field-group">
+						<text class="field-label">昵称</text>
+						<input v-model="profile.user_base.nick_name" class="field-input" placeholder="昵称" />
+					</view>
+					<view class="field-group">
+						<text class="field-label">头像链接</text>
+						<input v-model="profile.user_base.avatar" class="field-input" placeholder="图片 URL" />
+					</view>
+					<view class="field-row">
+						<view class="field-group half">
+							<text class="field-label">性别</text>
+							<input v-model="profile.user_base.gender" class="field-input" placeholder="unknown" />
+						</view>
+						<view class="field-group half">
+							<text class="field-label">邮箱</text>
+							<input v-model="profile.user_private.email" class="field-input" placeholder="选填" />
+						</view>
+					</view>
+					<view class="edit-actions">
+						<view class="pill-btn ghost" @tap="cancelEdit">取消</view>
+						<view class="pill-btn primary" @tap="saveProfile">保存</view>
 					</view>
 				</view>
-				<view class="agreement-box mt-24">
-					<view class="agreement-row" @tap="toggleAgreement">
-						<view class="agree-icon" :class="{ checked: agreed }">{{ agreed ? '✓' : '' }}</view>
-						<text class="agreement-text">我已阅读并同意《会员服务协议》《隐私政策》《未成年人隐私政策》</text>
-					</view>
-					<button class="phone-login-button" open-type="getPhoneNumber" @getphonenumber="handlePhoneLogin">
-						手机号一键登录
-					</button>
-					<text class="skip-text" @tap="showGuestNotice">暂不登录</text>
+				<view v-else class="me-loading">
+					<text class="muted-txt">加载中…</text>
 				</view>
 			</view>
 		</view>
 
-		<view v-else>
-			<view class="poster">
-				<text class="eyebrow">USER CENTER</text>
-				<text class="poster-title">你的出行主页已经就绪</text>
-				<text class="poster-subtitle">现在可以继续完善资料，把昵称、头像和常用信息维护完整。</text>
-			</view>
-
-			<view class="section">
-				<view class="section-head">
-					<view class="flex-1">
-						<text class="section-title">当前账号</text>
-						<text class="section-desc mt-8">基于手机号登录进入，资料可以继续补全。</text>
-					</view>
-					<view class="action-button small-button" @tap="logout">退出</view>
-				</view>
-
-				<view class="wechat-login-card">
-					<image
-						class="wechat-avatar"
-						:src="displayAvatar"
-						mode="aspectFill"
-					/>
-					<text class="wechat-name">{{ displayName }}</text>
-					<text class="section-desc mt-8 center-text">已登录，可继续完善你的个人资料。</text>
-					<view class="action-button full-width mt-24" @tap="syncWechatProfile">同步微信资料</view>
-				</view>
-			</view>
-
-			<view class="section">
-				<view class="section-head">
-					<view class="flex-1">
-						<text class="section-title">我的资料</text>
-						<text class="section-desc mt-8">查询和更新都直接走当前登录用户。</text>
-					</view>
-					<view class="action-button small-button" @tap="loadProfile">刷新</view>
-				</view>
-
-				<view v-if="profile" class="list-stack">
-					<view class="line-card">
-						<text class="sub-title">身份信息</text>
-						<text class="section-desc mt-8">用户ID：{{ profile.user_base.user_id || '-' }}</text>
-						<text class="section-desc mt-8">角色：{{ profile.user_private.role || '-' }}</text>
-						<text class="section-desc mt-8">状态：{{ profile.user_private.status }}</text>
-						<text class="section-desc mt-8">手机号：{{ profile.user_private.phone || '-' }}</text>
-					</view>
-					<view>
-						<text class="muted">昵称</text>
-						<input v-model="profile.user_base.nick_name" class="field" placeholder="请输入昵称" />
-					</view>
-					<view>
-						<text class="muted">头像地址</text>
-						<input v-model="profile.user_base.avatar" class="field" placeholder="请输入头像 URL" />
-					</view>
-					<view class="split-two">
-						<view>
-							<text class="muted">性别</text>
-							<input v-model="profile.user_base.gender" class="field" placeholder="male / female / unknown" />
-						</view>
-						<view>
-							<text class="muted">邮箱</text>
-							<input v-model="profile.user_private.email" class="field" placeholder="请输入邮箱" />
-						</view>
-					</view>
-					<view class="action-button full-width" @tap="saveProfile">保存资料</view>
-				</view>
-				<view v-else class="line-card">
-					<text class="section-desc">还没有用户资料，点击刷新或重新登录。</text>
-				</view>
-			</view>
-
-			<view class="section">
-				<text class="section-title">当前接入状态</text>
-				<view class="pill-row mt-16">
-					<text class="pill">手机号登录：/api/user/mini/phone/login</text>
-					<text class="pill">资料同步：/api/user/update</text>
-					<text class="pill">查询：/api/user/query</text>
-					<text class="pill">更新：/api/user/update</text>
-					<text class="pill">user api: 9003</text>
+		<!-- 微信小程序：chooseAvatar + 昵称输入，头像 STS 直传 OSS -->
+		<!-- #ifdef MP-WEIXIN -->
+		<view v-if="wechatSyncOpen" class="sync-mask" @tap="closeWechatSync">
+			<view class="sync-sheet" @tap.stop>
+				<text class="sync-title">同步微信资料</text>
+				<text class="sync-hint">请选择头像并确认昵称后保存</text>
+				<image class="sync-avatar-preview" :src="wxAvatarPreview" mode="aspectFill" />
+				<button class="sync-choose-btn" open-type="chooseAvatar" @chooseavatar="onWxChooseAvatar">
+					选择微信头像
+				</button>
+				<input
+					class="sync-nick-input"
+					type="nickname"
+					:value="wxNickDraft"
+					placeholder="微信昵称"
+					@input="onWxNickInput"
+				/>
+				<view class="sync-sheet-actions">
+					<view class="pill-btn ghost" @tap="closeWechatSync">取消</view>
+					<view class="pill-btn primary" @tap="confirmWechatSync">保存</view>
 				</view>
 			</view>
 		</view>
+		<!-- #endif -->
 	</view>
 </template>
 
@@ -116,6 +94,7 @@ import {
 	persistAuth,
 	removeAuth,
 	updateCurrentUser,
+	uploadAvatarFile,
 } from '../../api/user'
 import { getAuthState } from '../../utils/auth'
 import { showError, withLoading } from '../../utils/feedback'
@@ -140,33 +119,49 @@ function createEmptyProfile() {
 	}
 }
 
+const DEFAULT_AVATAR =
+	'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=240&q=80'
+
 export default {
 	data() {
 		return {
 			auth: null,
 			profile: null,
 			agreed: false,
+			editing: false,
+			wechatSyncOpen: false,
+			wxNickDraft: '',
+			wxAvatarLocal: '',
 		}
 	},
 	computed: {
 		displayName() {
-			if (this.profile && this.profile.user_base && this.profile.user_base.nick_name) {
-				return this.profile.user_base.nick_name
-			}
-			return '微信用户'
+			const n = this.profile && this.profile.user_base && this.profile.user_base.nick_name
+			return (n && String(n).trim()) || '未设置昵称'
 		},
 		displayAvatar() {
-			if (this.profile && this.profile.user_base && this.profile.user_base.avatar) {
-				return this.profile.user_base.avatar
-			}
-			return 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=240&q=80'
+			const a = this.profile && this.profile.user_base && this.profile.user_base.avatar
+			return (a && String(a).trim()) || DEFAULT_AVATAR
+		},
+		phoneDisplay() {
+			if (!this.profile) return ''
+			const p = this.profile.user_private && this.profile.user_private.phone
+			if (!p || String(p).length < 7) return '已绑定手机号'
+			const s = String(p)
+			return `${s.slice(0, 3)}****${s.slice(-4)}`
+		},
+		wxAvatarPreview() {
+			if (this.wxAvatarLocal) return this.wxAvatarLocal
+			return this.displayAvatar
 		},
 	},
 	onShow() {
 		this.auth = getAuthState()
-		// “我的”页是 tab 页面，每次切回时都重新读取本地登录态。
 		if (this.auth) {
-			this.loadProfile()
+			this.loadProfile(true)
+		} else {
+			this.profile = null
+			this.editing = false
 		}
 	},
 	methods: {
@@ -174,14 +169,15 @@ export default {
 			this.agreed = !this.agreed
 		},
 		showGuestNotice() {
-			uni.showToast({
-				title: '部分个人能力需登录后使用',
-				icon: 'none',
-			})
+			uni.showToast({ title: '登录后可使用私信等功能', icon: 'none' })
+		},
+		cancelEdit() {
+			this.editing = false
+			this.loadProfile(true)
 		},
 		async handlePhoneLogin(event) {
 			if (!this.agreed) {
-				showError(new Error('请先阅读并勾选协议'))
+				showError(new Error('请先勾选同意协议'))
 				return
 			}
 			const detail = event && event.detail ? event.detail : {}
@@ -198,32 +194,77 @@ export default {
 						avatar: profileInfo.avatarUrl,
 					})
 				)
-				this.auth = result
 				const rid = result && (result.user_id || result.userId)
 				persistAuth(rid ? { ...result, user_id: String(rid) } : result)
 				this.auth = getAuthState()
-				await this.loadProfile()
+				await this.loadProfile(false)
+				this.editing = false
 				uni.showToast({ title: result.is_new_user ? '登录成功' : '欢迎回来', icon: 'success' })
 			} catch (error) {
 				showError(error)
 			}
 		},
-		async syncWechatProfile() {
-			if (!this.auth) {
-				showError(new Error('请先登录'))
+		openWechatSync() {
+			if (!this.auth || !this.profile) return
+			// #ifdef MP-WEIXIN
+			const n = this.profile.user_base && this.profile.user_base.nick_name
+			this.wxNickDraft = n ? String(n) : ''
+			this.wxAvatarLocal = ''
+			this.wechatSyncOpen = true
+			// #endif
+			// #ifndef MP-WEIXIN
+			uni.showToast({ title: '请在微信小程序内同步头像与昵称', icon: 'none' })
+			// #endif
+		},
+		closeWechatSync() {
+			this.wechatSyncOpen = false
+			this.wxAvatarLocal = ''
+		},
+		onWxChooseAvatar(e) {
+			const u = e && e.detail && e.detail.avatarUrl
+			if (u) this.wxAvatarLocal = u
+		},
+		onWxNickInput(e) {
+			const v = e && e.detail && e.detail.value
+			this.wxNickDraft = v != null ? String(v) : ''
+		},
+		async confirmWechatSync() {
+			if (!this.profile) return
+			const oldNick = ((this.profile.user_base && this.profile.user_base.nick_name) || '').trim()
+			const newNick = (this.wxNickDraft || '').trim()
+			const nickChanged = newNick !== oldNick
+			const avatarPicked = !!this.wxAvatarLocal
+			if (!nickChanged && !avatarPicked) {
+				uni.showToast({ title: '请选择新头像或修改昵称', icon: 'none' })
+				return
+			}
+			if (nickChanged && !newNick) {
+				uni.showToast({ title: '昵称不能为空', icon: 'none' })
+				return
+			}
+			const uid = this.profile.user_base && this.profile.user_base.user_id
+			if (!uid) {
+				showError(new Error('缺少用户 ID'))
 				return
 			}
 			try {
-				const profileInfo = await this.getWechatProfile()
-				const payload = JSON.parse(JSON.stringify(this.profile || createEmptyProfile()))
-				payload.user_private.password = ''
-				payload.user_base.nick_name = profileInfo.nickName || payload.user_base.nick_name
-				payload.user_base.avatar = profileInfo.avatarUrl || payload.user_base.avatar
-				await withLoading('同步中', () =>
-					updateCurrentUser(payload, ['nick_name', 'avatar'])
-				)
-				await this.loadProfile()
-				uni.showToast({ title: '同步成功', icon: 'success' })
+				await withLoading('保存中', async () => {
+					const payload = JSON.parse(JSON.stringify(this.profile))
+					payload.user_private.password = ''
+					if (nickChanged) payload.user_base.nick_name = newNick
+					let avatarUrl = payload.user_base.avatar
+					if (avatarPicked) {
+						avatarUrl = await uploadAvatarFile(this.wxAvatarLocal)
+						payload.user_base.avatar = avatarUrl
+					}
+					const fields = []
+					if (nickChanged) fields.push('nick_name')
+					if (avatarPicked) fields.push('avatar')
+					await updateCurrentUser(payload, fields)
+				})
+				this.closeWechatSync()
+				await this.loadProfile(true)
+				uni.showToast({ title: '已更新', icon: 'success' })
 			} catch (error) {
 				showError(error)
 			}
@@ -232,26 +273,22 @@ export default {
 			return new Promise((resolve) => {
 				if (typeof uni.getUserProfile === 'function') {
 					uni.getUserProfile({
-						desc: '用于完善个人资料',
-						success: (res) => {
-							resolve(res.userInfo || {})
-						},
-						fail: () => {
-							resolve({})
-						},
+						desc: '用于完善头像昵称',
+						success: (res) => resolve(res.userInfo || {}),
+						fail: () => resolve({}),
 					})
 					return
 				}
 				resolve({})
 			})
 		},
-		async loadProfile() {
+		async loadProfile(silent) {
 			if (!this.auth) {
 				this.profile = null
 				return
 			}
-			try {
-				const result = await withLoading('加载资料', () => getCurrentUser('get_private_info'))
+			const run = async () => {
+				const result = await getCurrentUser('get_private_info')
 				const nextProfile = result.user_info || createEmptyProfile()
 				this.profile = nextProfile
 				const uid = nextProfile.user_base && nextProfile.user_base.user_id
@@ -260,23 +297,28 @@ export default {
 					this.auth = merged
 					persistAuth(merged)
 				}
+			}
+			try {
+				if (silent) {
+					await run()
+				} else {
+					await withLoading('加载中', run)
+				}
 			} catch (error) {
 				showError(error)
 			}
 		},
 		async saveProfile() {
-			if (!this.profile) {
-				showError(new Error('请先登录'))
-				return
-			}
+			if (!this.profile) return
 			try {
 				const payload = JSON.parse(JSON.stringify(this.profile))
 				payload.user_private.password = ''
 				await withLoading('保存中', () =>
 					updateCurrentUser(payload, ['nick_name', 'avatar', 'gender', 'email'])
 				)
-				uni.showToast({ title: '保存成功', icon: 'success' })
-				await this.loadProfile()
+				uni.showToast({ title: '已保存', icon: 'success' })
+				this.editing = false
+				await this.loadProfile(true)
 			} catch (error) {
 				showError(error)
 			}
@@ -285,6 +327,7 @@ export default {
 			removeAuth()
 			this.auth = null
 			this.profile = null
+			this.editing = false
 			uni.showToast({ title: '已退出', icon: 'none' })
 		},
 	},
@@ -292,174 +335,323 @@ export default {
 </script>
 
 <style scoped>
-.wechat-login-card {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	padding: 20rpx 0 8rpx;
+.profile-page {
+	padding: 32rpx;
+	padding-bottom: calc(120rpx + env(safe-area-inset-bottom));
 }
 
-.account-poster {
-	padding-bottom: 34rpx;
+/* ── 登录 ── */
+.login-panel {
+	margin-top: 80rpx;
+	padding: 48rpx 40rpx;
+	background: var(--surface);
+	border-radius: 28rpx;
+	box-shadow: var(--shadow-sm);
 }
 
-.account-hero {
-	display: flex;
-	align-items: center;
-	gap: 22rpx;
-	margin-top: 30rpx;
-	padding: 22rpx;
-	border-radius: 30rpx;
-	background: rgba(255, 247, 239, 0.08);
-	border: 1rpx solid rgba(255, 255, 255, 0.08);
+.login-title {
+	display: block;
+	font-size: 40rpx;
+	font-weight: 800;
+	color: var(--text);
 }
 
-.hero-avatar {
-	width: 108rpx;
-	height: 108rpx;
-	flex-shrink: 0;
+.login-desc {
+	display: block;
+	margin-top: 16rpx;
+	font-size: 26rpx;
+	color: var(--text-2);
+	line-height: 1.5;
 }
 
-.hero-copy {
-	display: flex;
-	flex-direction: column;
-	gap: 8rpx;
-	min-width: 0;
-}
-
-.hero-name {
-	font-size: 32rpx;
-	font-weight: 700;
-	color: #fff7ef;
-}
-
-.hero-desc {
-	font-size: 24rpx;
-	line-height: 1.6;
-	color: rgba(255, 247, 239, 0.72);
-}
-
-.agreement-box {
-	padding: 26rpx;
-	border-radius: 30rpx;
-	background: rgba(255, 247, 239, 0.1);
-	border: 1rpx solid rgba(255, 255, 255, 0.08);
-}
-
-.agreement-row {
+.agree-row {
 	display: flex;
 	align-items: flex-start;
 	gap: 14rpx;
+	margin-top: 40rpx;
 }
 
-.agree-icon {
+.agree-box {
+	width: 36rpx;
+	height: 36rpx;
+	border-radius: 8rpx;
+	border: 2rpx solid var(--border);
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	width: 34rpx;
-	height: 34rpx;
-	margin-top: 4rpx;
-	border-radius: 999rpx;
-	border: 1rpx solid rgba(255, 247, 239, 0.55);
+	font-size: 22rpx;
 	color: transparent;
 	flex-shrink: 0;
-	font-size: 22rpx;
+	margin-top: 4rpx;
 }
 
-.agree-icon.checked {
-	background: #fff7ef;
-	color: var(--accent-deep);
-	border-color: #fff7ef;
+.agree-box.on {
+	background: var(--accent);
+	border-color: var(--accent);
+	color: #fff;
 }
 
-.agreement-text {
+.agree-txt {
 	flex: 1;
 	font-size: 24rpx;
-	line-height: 1.7;
-	color: rgba(255, 247, 239, 0.82);
+	color: var(--text-2);
+	line-height: 1.55;
 }
 
-.phone-login-button {
+.login-btn {
+	width: 100%;
+	height: 88rpx;
+	margin-top: 32rpx;
+	line-height: 88rpx;
+	text-align: center;
+	border-radius: 999rpx;
+	background: var(--accent);
+	color: #fff;
+	font-size: 30rpx;
+	font-weight: 700;
+	border: none;
+}
+
+.login-btn::after {
+	border: none;
+}
+
+.skip-link {
+	display: block;
+	margin-top: 28rpx;
+	text-align: center;
+	font-size: 26rpx;
+	color: var(--text-2);
+}
+
+/* ── 个人主页 ── */
+.me-panel {
+	margin-top: 24rpx;
+}
+
+.me-card {
+	background: var(--surface);
+	border-radius: 28rpx;
+	padding: 48rpx 36rpx 40rpx;
+	box-shadow: var(--shadow-sm);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+
+.me-avatar {
+	width: 144rpx;
+	height: 144rpx;
+	border-radius: 999rpx;
+	background: var(--accent-bg);
+}
+
+.me-name {
+	margin-top: 24rpx;
+	font-size: 36rpx;
+	font-weight: 800;
+	color: var(--text);
+}
+
+.me-phone {
+	margin-top: 10rpx;
+	font-size: 26rpx;
+	color: var(--text-2);
+}
+
+.me-row-actions {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: 8rpx;
+	margin-top: 36rpx;
+}
+
+.text-btn {
+	font-size: 28rpx;
+	color: var(--accent);
+	font-weight: 600;
+	padding: 8rpx 12rpx;
+}
+
+.dot {
+	font-size: 26rpx;
+	color: var(--text-2);
+}
+
+.logout-btn {
+	margin-top: 32rpx;
+	font-size: 26rpx;
+	color: var(--text-2);
+	padding: 12rpx 24rpx;
+}
+
+.me-loading {
+	margin-top: 24rpx;
+}
+
+.muted-txt {
+	font-size: 26rpx;
+	color: var(--text-2);
+}
+
+/* ── 编辑 ── */
+.edit-form {
+	width: 100%;
+	margin-top: 36rpx;
+	padding-top: 28rpx;
+	border-top: 1rpx solid var(--border);
+}
+
+.field-group {
+	margin-bottom: 24rpx;
+}
+
+.field-group.half {
+	margin-bottom: 0;
+}
+
+.field-row {
+	display: flex;
+	gap: 20rpx;
+	margin-bottom: 24rpx;
+}
+
+.field-row .half {
+	flex: 1;
+	min-width: 0;
+}
+
+.field-label {
+	display: block;
+	font-size: 24rpx;
+	color: var(--text-2);
+	margin-bottom: 10rpx;
+}
+
+.field-input {
+	width: 100%;
+	height: 80rpx;
+	padding: 0 22rpx;
+	background: var(--bg);
+	border-radius: 16rpx;
+	border: 1rpx solid var(--border);
+	font-size: 28rpx;
+	color: var(--text);
+}
+
+.edit-actions {
+	display: flex;
+	gap: 20rpx;
+	margin-top: 12rpx;
+}
+
+.pill-btn {
+	flex: 1;
+	height: 80rpx;
+	border-radius: 999rpx;
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	font-size: 28rpx;
+	font-weight: 700;
+}
+
+.pill-btn.ghost {
+	background: var(--surface-2);
+	color: var(--text);
+}
+
+.pill-btn.primary {
+	background: var(--accent);
+	color: #fff;
+}
+
+/* ── 微信资料同步弹层 ── */
+.sync-mask {
+	position: fixed;
+	left: 0;
+	right: 0;
+	top: 0;
+	bottom: 0;
+	background: rgba(0, 0, 0, 0.45);
+	z-index: 500;
+	display: flex;
+	align-items: flex-end;
+	justify-content: center;
+	padding: 0 24rpx calc(24rpx + env(safe-area-inset-bottom));
+	box-sizing: border-box;
+}
+
+.sync-sheet {
 	width: 100%;
-	height: 92rpx;
-	margin-top: 26rpx;
-	border: 0;
-	border-radius: 999rpx;
-	background: linear-gradient(180deg, #ffd966, #ffcc2f);
-	color: #2e2118;
-	font-size: 32rpx;
-	font-weight: 700;
+	max-width: 680rpx;
+	background: var(--surface);
+	border-radius: 28rpx 28rpx 20rpx 20rpx;
+	padding: 36rpx 32rpx 32rpx;
+	box-shadow: var(--shadow-sm);
 }
 
-.phone-login-button::after {
-	border: 0;
-}
-
-.skip-text {
+.sync-title {
 	display: block;
-	margin-top: 22rpx;
-	text-align: center;
-	font-size: 26rpx;
-	color: rgba(255, 247, 239, 0.76);
-}
-
-.benefit-grid,
-.quick-grid {
-	display: grid;
-	grid-template-columns: 1fr;
-	gap: 18rpx;
-}
-
-.benefit-card,
-.quick-card {
-	padding: 24rpx;
-	border-radius: 26rpx;
-	background: rgba(255, 255, 255, 0.56);
-	border: 1rpx solid rgba(31, 28, 24, 0.06);
-}
-
-.benefit-kicker {
-	display: block;
-	font-size: 22rpx;
-	letter-spacing: 4rpx;
-	color: var(--accent-deep);
-}
-
-.benefit-title,
-.quick-title {
-	display: block;
-	margin-top: 12rpx;
-	font-size: 30rpx;
-	font-weight: 700;
-}
-
-.quick-state {
-	display: inline-flex;
-	padding: 8rpx 16rpx;
-	border-radius: 999rpx;
-	background: rgba(201, 109, 68, 0.12);
-	color: var(--accent-deep);
-	font-size: 22rpx;
-}
-
-.wechat-avatar {
-	width: 132rpx;
-	height: 132rpx;
-	border-radius: 999rpx;
-	background: rgba(201, 109, 68, 0.12);
-}
-
-.wechat-name {
-	display: block;
-	margin-top: 18rpx;
 	font-size: 34rpx;
-	font-weight: 700;
+	font-weight: 800;
+	color: var(--text);
+	text-align: center;
 }
 
-.center-text {
+.sync-hint {
+	display: block;
+	margin-top: 16rpx;
+	font-size: 24rpx;
+	color: var(--text-2);
+	line-height: 1.5;
+}
+
+.sync-avatar-preview {
+	display: block;
+	width: 160rpx;
+	height: 160rpx;
+	border-radius: 999rpx;
+	margin: 28rpx auto 0;
+	background: var(--accent-bg);
+}
+
+.sync-choose-btn {
+	width: 100%;
+	height: 80rpx;
+	margin-top: 24rpx;
+	line-height: 80rpx;
 	text-align: center;
+	border-radius: 999rpx;
+	background: var(--surface-2);
+	color: var(--text);
+	font-size: 28rpx;
+	font-weight: 600;
+	border: 1rpx solid var(--border);
+}
+
+.sync-choose-btn::after {
+	border: none;
+}
+
+.sync-nick-input {
+	width: 100%;
+	height: 88rpx;
+	margin-top: 20rpx;
+	padding: 0 22rpx;
+	box-sizing: border-box;
+	background: var(--bg);
+	border-radius: 16rpx;
+	border: 1rpx solid var(--border);
+	font-size: 28rpx;
+	color: var(--text);
+}
+
+.sync-sheet-actions {
+	display: flex;
+	gap: 20rpx;
+	margin-top: 32rpx;
 }
 </style>

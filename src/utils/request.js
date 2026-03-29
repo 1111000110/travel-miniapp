@@ -18,6 +18,19 @@ function uniRequest(options) {
 /** 并发 401 时只刷新一次 */
 let refreshPromise = null
 
+function normalizePayload(raw) {
+	if (raw == null) return null
+	if (typeof raw === 'string') {
+		try {
+			return JSON.parse(raw)
+		} catch {
+			return null
+		}
+	}
+	if (typeof raw === 'object') return raw
+	return null
+}
+
 function mergeAuthAfterRefresh(prev, data) {
 	if (!data || !data.token) return prev
 	const uid =
@@ -33,7 +46,9 @@ function mergeAuthAfterRefresh(prev, data) {
 }
 
 async function refreshAccessToken() {
-	if (refreshPromise) return refreshPromise
+	if (refreshPromise) {
+		return refreshPromise
+	}
 
 	const auth = getAuthState()
 	const rt = auth && (auth.refresh_token || auth.refreshToken)
@@ -42,37 +57,38 @@ async function refreshAccessToken() {
 		throw new Error('登录已失效，请重新登录')
 	}
 
-	refreshPromise = (async () => {
+	const p = (async () => {
 		const res = await uniRequest({
 			url: `${USER_API_BASE_URL}/api/user/refresh`,
 			method: 'POST',
 			data: { refresh_token: rt },
 			header: { 'Content-Type': 'application/json' },
 		})
-		const payload = res.data
-		if (res.statusCode !== 200 || !payload || payload.code !== 0 || !payload.data) {
+		const payload = normalizePayload(res.data)
+		if (res.statusCode !== 200 || !payload || Number(payload.code) !== 0 || payload.data == null) {
 			clearAuthState()
-			throw new Error((payload && payload.message) || '登录已过期，请重新登录')
+			throw new Error((payload && (payload.message || payload.msg)) || '登录已过期，请重新登录')
 		}
 		const merged = mergeAuthAfterRefresh(auth, payload.data)
 		setAuthState(merged)
 		return merged.token
 	})()
-		.catch((e) => {
-			throw e
-		})
-		.finally(() => {
-			refreshPromise = null
-		})
+
+	refreshPromise = p.finally(() => {
+		refreshPromise = null
+	})
 
 	return refreshPromise
 }
 
-function isAuthExpiredPayload(payload) {
-	if (!payload) return false
-	if (payload.code === 401) return true
-	const msg = String(payload.message || '')
-	return /token/i.test(msg) && /过期|失效|invalid|expired/i.test(msg)
+/** 业务层 token 失效（go-zero 多为 HTTP 200 + code 401） */
+function isTokenBusinessError(payload) {
+	if (!payload || typeof payload !== 'object') return false
+	if (Number(payload.code) === 401) return true
+	const msg = String(payload.message || payload.msg || '')
+	return /Token已过期|token已过期|未登录|请登录|登录失效|JWT|jwt|鉴权|授权失败|无效.*token|token.*无效/i.test(
+		msg
+	)
 }
 
 /**
@@ -81,7 +97,7 @@ function isAuthExpiredPayload(payload) {
  * @param {object} options
  * @param {string} [options.baseURL]
  * @param {string} [options.token] 传入则带 Authorization；空字符串表示不带 token
- * @param {boolean} [options.skipTokenRetry] 为 true 时不做刷新重试（一般无需使用）
+ * @param {boolean} [options.skipTokenRetry] 为 true 时不做刷新重试
  */
 export async function request(url, data = {}, options = {}) {
 	const baseURL = options.baseURL || DEFAULT_API_BASE_URL
@@ -89,36 +105,45 @@ export async function request(url, data = {}, options = {}) {
 	const token = options.token
 	const sentBearer = typeof token === 'string' && token.length > 0
 
-	const runOnce = async (bearer) => {
+	let bearer = sentBearer ? token : ''
+	let refreshedOnce = false
+
+	const runOnce = async (authHeader) => {
 		const header = { 'Content-Type': 'application/json' }
-		if (bearer) header.Authorization = `Bearer ${bearer}`
-		const res = await uniRequest({
+		if (authHeader) header.Authorization = `Bearer ${authHeader}`
+		return uniRequest({
 			url: `${baseURL}${url}`,
 			method: 'POST',
 			data,
 			header,
 		})
-		return res
 	}
 
-	let res = await runOnce(sentBearer ? token : '')
-	let payload = res.data
+	for (;;) {
+		const res = await runOnce(bearer)
+		const payload = normalizePayload(res.data)
 
-	if (res.statusCode !== 200 || !payload) {
-		throw new Error(`请求失败: ${res.statusCode}`)
-	}
+		const httpUnauthorized = res.statusCode === 401
+		const needRefresh =
+			sentBearer &&
+			!skipTokenRetry &&
+			!refreshedOnce &&
+			(httpUnauthorized || isTokenBusinessError(payload))
 
-	if (isAuthExpiredPayload(payload) && sentBearer && !skipTokenRetry) {
-		const newToken = await refreshAccessToken()
-		res = await runOnce(newToken)
-		payload = res.data
-	}
+		if (needRefresh) {
+			refreshedOnce = true
+			bearer = await refreshAccessToken()
+			continue
+		}
 
-	if (res.statusCode !== 200 || !payload) {
-		throw new Error(`请求失败: ${res.statusCode}`)
+		if (res.statusCode !== 200 || payload == null) {
+			throw new Error(`请求失败: ${res.statusCode}`)
+		}
+
+		if (Number(payload.code) !== 0) {
+			throw new Error(payload.message || payload.msg || '请求失败')
+		}
+
+		return payload.data
 	}
-	if (payload.code !== 0) {
-		throw new Error(payload.message || '请求失败')
-	}
-	return payload.data
 }

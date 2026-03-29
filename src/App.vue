@@ -1,7 +1,21 @@
 <script>
+import { getAuthState, clearAuthState } from './utils/auth'
+import { wsManager } from './utils/websocket'
+
 export default {
   onLaunch: function () {
     console.log('Travel Mini App Launch')
+    // 若已登录，启动时自动建立 WebSocket 连接（onLaunch 晚于页面生命周期前执行，适合全局初始化）
+    const auth = getAuthState()
+    if (auth && auth.token) {
+      wsManager.connect(auth.token)
+    }
+
+    // token 过期或鉴权失败时，清除本地登录态并跳回登录页
+    wsManager.on('auth_failed', () => {
+      clearAuthState()
+      uni.reLaunch({ url: '/pages/login/index' })
+    })
   },
 }
 </script>

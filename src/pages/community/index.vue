@@ -202,9 +202,10 @@ export default {
 	onShow() {
 		this.loadUnreadCount()
 		if (this.activeTab === 'message') {
-			if (!this.sessions.length) this.loadSessions(true)
-		} else if (!this.notifications.length) {
-			this.loadNotifications(true)
+			// 有数据时静默刷新（不显示 loading），确保从聊天页返回后 unread_count 及时更新
+			this.loadSessions(true, { silent: !!this.sessions.length })
+		} else {
+			this.loadNotifications(true, { silent: !!this.notifications.length })
 		}
 		this.startMessagePoll()
 	},
